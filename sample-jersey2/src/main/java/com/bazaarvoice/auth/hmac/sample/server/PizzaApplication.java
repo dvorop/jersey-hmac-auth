@@ -6,6 +6,7 @@ import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import com.bazaarvoice.auth.hmac.server.Authenticator;
+import com.bazaarvoice.auth.hmac.server.Authorizer;
 import com.bazaarvoice.auth.hmac.server.HmacAuthFeature;
 
 /**
@@ -17,6 +18,9 @@ public class PizzaApplication<P> extends ResourceConfig {
         protected void configure() {
             // The P parameter is to trick HK2 into injecting the Authenticator where it is needed.
             bind(PizzaAuthenticator.class).to(new TypeLiteral<Authenticator<P>>() {});
+
+            //Optionally bind the authorization class
+            bind(PizzaAuthorizer.class).to(new TypeLiteral<Authorizer<P>>() {});
         }
     };
 

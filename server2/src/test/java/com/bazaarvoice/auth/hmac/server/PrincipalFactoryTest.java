@@ -12,6 +12,7 @@ import java.net.URISyntaxException;
 
 import javax.inject.Provider;
 import javax.ws.rs.BadRequestException;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
@@ -33,17 +34,21 @@ public class PrincipalFactoryTest {
     @Mock
     private Authenticator<String> authenticator;
     @Mock
+    private Authorizer<String> authorizer;
+    @Mock
     private Provider<ContainerRequest> requestProvider;
     @Mock
     private ContainerRequest request;
     private PrincipalFactory<String> factory;
+    private PrincipalFactory<String> factoryWithPermissions;
 
     @Before
     public void setUp() throws Exception {
         initMocks(this);
 
         given(requestProvider.get()).willReturn(request);
-        factory = new PrincipalFactory<String>(authenticator, requestProvider);
+        factory = new PrincipalFactory<String>(authenticator, null, requestProvider);
+        factoryWithPermissions = new PrincipalFactory<String>(authenticator, authorizer, requestProvider);
     }
 
     @Test
@@ -117,6 +122,64 @@ public class PrincipalFactoryTest {
 
         // then
         assertEquals("principal", result);
+    }
+
+    @Test
+    public final void verifyProvideAllowsPermissions() throws URISyntaxException {
+        // given
+        final MultivaluedMap<String, String> parameterMap = new MultivaluedHashMap<String, String>();
+        parameterMap.putSingle("apiKey", "validApiKey");
+
+        final URI uri = new URI("https://api.example.com/path/to/resource?apiKey=validApiKey");
+        final ExtendedUriInfo uriInfo = mock(ExtendedUriInfo.class);
+        given(uriInfo.getQueryParameters()).willReturn(parameterMap);
+        given(uriInfo.getRequestUri()).willReturn(uri);
+
+        given(request.getUriInfo()).willReturn(uriInfo);
+        given(request.getHeaderString("X-Auth-Version")).willReturn("1");
+        given(request.getHeaderString("X-Auth-Signature")).willReturn("validSignature");
+        given(request.getHeaderString("X-Auth-Timestamp")).willReturn("two seconds ago");
+        given(request.getMethod()).willReturn("GET");
+
+        given(authenticator.authenticate(any(Credentials.class))).willReturn("principal");
+        given(authorizer.authorize("principal", request.getMethod(), uriInfo.getPath(false), uriInfo.getRequestUri())).willReturn(true);
+
+        // when
+        final String result = factoryWithPermissions.provide();
+
+        // then
+        assertEquals("principal", result);
+    }
+
+    @Test
+    public final void verifyProvideDeniesPermissions() throws URISyntaxException {
+        // given
+        final MultivaluedMap<String, String> parameterMap = new MultivaluedHashMap<String, String>();
+        parameterMap.putSingle("apiKey", "validApiKey");
+
+        final URI uri = new URI("https://api.example.com/path/to/resource?apiKey=validApiKey");
+        final ExtendedUriInfo uriInfo = mock(ExtendedUriInfo.class);
+        given(uriInfo.getQueryParameters()).willReturn(parameterMap);
+        given(uriInfo.getRequestUri()).willReturn(uri);
+
+        given(request.getUriInfo()).willReturn(uriInfo);
+        given(request.getHeaderString("X-Auth-Version")).willReturn("1");
+        given(request.getHeaderString("X-Auth-Signature")).willReturn("validSignature");
+        given(request.getHeaderString("X-Auth-Timestamp")).willReturn("two seconds ago");
+        given(request.getMethod()).willReturn("GET");
+
+        given(authenticator.authenticate(any(Credentials.class))).willReturn("principal");
+        given(authorizer.authorize("principal", request.getMethod(), uriInfo.getPath(false), uriInfo.getRequestUri())).willReturn(false);
+
+        // when
+        try {
+            factoryWithPermissions.provide();
+
+            // then
+            fail("Expected 403 status code");
+        } catch (final ForbiddenException fe) {
+        }
+
     }
 
 }

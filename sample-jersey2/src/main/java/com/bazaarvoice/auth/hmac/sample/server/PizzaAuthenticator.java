@@ -11,6 +11,8 @@ public class PizzaAuthenticator implements Authenticator<String> {
     public String authenticate(final Credentials credentials) {
         if ("fred-api-key".equals(credentials.getApiKey())) {
             return "fred";
+        } else if ("sally-api-key".equals(credentials.getApiKey())) {
+            return "sally";
         }
         return null;
     }

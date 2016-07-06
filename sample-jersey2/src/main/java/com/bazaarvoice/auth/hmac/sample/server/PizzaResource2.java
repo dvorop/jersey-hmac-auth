@@ -2,6 +2,7 @@ package com.bazaarvoice.auth.hmac.sample.server;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import javax.ws.rs.DELETE;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -23,6 +24,11 @@ public class PizzaResource2 {
     @POST
     public void bakePizza(@HmacAuth final String principal) {
         logger.info("Baking a pizza for {}.", principal);
+    }
+
+    @DELETE
+    public void eatPizza(@HmacAuth final String principal) {
+        logger.info("{} is eating a pizza.", principal);
     }
 
 }
